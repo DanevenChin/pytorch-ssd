@@ -23,6 +23,10 @@ from vision.ssd.config import mobilenetv1_ssd_config
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 
+from tensorboardX import SummaryWriter
+from eval_ssd import get_map
+import datetime
+
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 
@@ -93,7 +97,7 @@ parser.add_argument('--debug_steps', default=100, type=int,
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
 
-parser.add_argument('--checkpoint_folder', default='models/',
+parser.add_argument('--checkpoint_folder', default='saved_model/',
                     help='Directory for saving checkpoint models')
 
 
@@ -138,6 +142,9 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1):
                 f"Average Regression Loss {avg_reg_loss:.4f}, " +
                 f"Average Classification Loss: {avg_clf_loss:.4f}"
             )
+            writer.add_scalar("Train Loss", avg_loss, epoch)
+            writer.add_scalar("Train Regression Loss", avg_reg_loss, epoch)
+            writer.add_scalar("Train Classification Loss", avg_clf_loss, epoch)
             running_loss = 0.0
             running_regression_loss = 0.0
             running_classification_loss = 0.0
@@ -169,6 +176,11 @@ def test(loader, net, criterion, device):
 
 if __name__ == '__main__':
     timer = Timer()
+
+    if not os.path.exists("/log/{}".format(args.net)):
+        os.mkdir("/log/{}".format(args.net))
+    writer = SummaryWriter("log/{}/{}".format(args.net,
+                            datetime.datetime.now().strftime('%Y-%m-%d %H：%M：%S')))
 
     logging.info(args)
     if args.net == 'vgg16-ssd':
@@ -326,6 +338,11 @@ if __name__ == '__main__':
                 f"Validation Regression Loss {val_regression_loss:.4f}, " +
                 f"Validation Classification Loss: {val_classification_loss:.4f}"
             )
+            writer.add_scalar("Validation Loss", val_loss, epoch)
+            writer.add_scalar("Validation Regression Loss", val_regression_loss, epoch)
+            writer.add_scalar("Validation Classification Loss", val_classification_loss, epoch)
             model_path = os.path.join(args.checkpoint_folder, f"{args.net}-Epoch-{epoch}-Loss-{val_loss}.pth")
             net.save(model_path)
             logging.info(f"Saved model {model_path}")
+            map = get_map(model_path, label_file)
+            writer.add_scalar("mAP", map, epoch)

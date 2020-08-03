@@ -1,12 +1,12 @@
 .DS_Store
 .idea
-log
-models
+#log
+#models
 
-eval_results/
+#eval_results/
 
 # Pytorch Models
-*.pth
+#*.pth
 
 # images
 *.jpg
